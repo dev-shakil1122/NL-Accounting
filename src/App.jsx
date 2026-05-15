@@ -319,9 +319,11 @@ function App() {
                                 <span className="tx-date">{tx.date || '-'}</span>
                                 <span className="tx-desc">{tx.description}</span>
                               </div>
-                              <span style={{ fontWeight: 600 }}>
-                                QAR {isIncome ? tx.credit : tx.debit}
-                              </span>
+                              <div className="tx-right">
+                                <span className="tx-amount">
+                                  QAR {isIncome ? tx.credit : tx.debit}
+                                </span>
+                              </div>
                             </div>
                           ))
                         )}
@@ -381,8 +383,8 @@ function App() {
                                 <span className="tx-date">{tx.date || '-'}</span>
                                 <span className="tx-desc">{tx.description}</span>
                               </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <span style={{ fontWeight: 600 }}>
+                              <div className="tx-right">
+                                <span className="tx-amount">
                                   QAR {isFunding ? tx.credit : tx.debit}
                                 </span>
                                 <div className="tx-actions">
