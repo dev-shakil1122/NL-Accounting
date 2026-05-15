@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import {
   LayoutDashboard, Receipt, PlusCircle, Wallet,
   ArrowUpRight, ArrowDownRight, Briefcase, Car, Users, BookOpen,
-  HelpCircle, X, MapPin, Pencil, Trash2, Activity
+  HelpCircle, X, MapPin, Pencil, Trash2, Activity, Menu
 } from 'lucide-react';
 import { initialTransactions, categories, expenseTypes } from './data';
 
@@ -10,6 +10,7 @@ const COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444'];
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [transactions, setTransactions] = useState(() => {
     const saved = localStorage.getItem('accounting_transactions');
     return saved ? JSON.parse(saved) : initialTransactions;
@@ -171,23 +172,26 @@ function App() {
 
   return (
     <div className="app-container">
+      {/* Mobile Overlay */}
+      <div className={`mobile-overlay ${isMobileMenuOpen ? 'active' : ''}`} onClick={() => setIsMobileMenuOpen(false)} />
+      
       {/* Sidebar */}
-      <aside className="sidebar">
+      <aside className={`sidebar ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
         <div className="sidebar-logo">
           <img src="/logo.png" alt="NL Logo" style={{ height: '36px', width: 'auto' }} />
           <span>NovaLink Accounting</span>
         </div>
 
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '2rem' }}>
-          <a className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>
+          <a className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => { setActiveTab('dashboard'); setIsMobileMenuOpen(false); }}>
             <LayoutDashboard size={20} />
             Dashboard
           </a>
-          <a className={`nav-item ${activeTab === 'transactions' ? 'active' : ''}`} onClick={() => setActiveTab('transactions')}>
+          <a className={`nav-item ${activeTab === 'transactions' ? 'active' : ''}`} onClick={() => { setActiveTab('transactions'); setIsMobileMenuOpen(false); }}>
             <Receipt size={20} />
             Transactions
           </a>
-          <a className={`nav-item ${activeTab === 'activities' ? 'active' : ''}`} onClick={() => setActiveTab('activities')}>
+          <a className={`nav-item ${activeTab === 'activities' ? 'active' : ''}`} onClick={() => { setActiveTab('activities'); setIsMobileMenuOpen(false); }}>
             <Activity size={20} />
             Activities
           </a>
@@ -197,9 +201,14 @@ function App() {
       {/* Main Content */}
       <main className="main-content">
         <header className="header animate-fade-in">
-          <div>
-            <h1>{activeTab === 'dashboard' ? 'Overview' : activeTab === 'transactions' ? 'All Transactions' : 'Activity Log'}</h1>
-            <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>Track your investments and expenses effectively.</p>
+          <div className="header-top">
+            <button className="menu-toggle" onClick={() => setIsMobileMenuOpen(true)}>
+              <Menu size={24} />
+            </button>
+            <div>
+              <h1>{activeTab === 'dashboard' ? 'Overview' : activeTab === 'transactions' ? 'All Transactions' : 'Activity Log'}</h1>
+              <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>Track your investments and expenses effectively.</p>
+            </div>
           </div>
           <button className="btn btn-primary" onClick={() => {
             setEditId(null);

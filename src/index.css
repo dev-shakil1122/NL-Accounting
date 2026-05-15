@@ -604,3 +604,76 @@ select.form-control {
   color: var(--text-secondary);
   line-height: 1.5;
 }
+
+/* Mobile Responsive Sidebar */
+.menu-toggle {
+  display: none;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 0.5rem;
+  margin-right: 1rem;
+}
+
+.mobile-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 30;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.mobile-overlay.active {
+  opacity: 1;
+  pointer-events: all;
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 40;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    width: 260px;
+  }
+  
+  .sidebar.mobile-open {
+    transform: translateX(0);
+  }
+  
+  .menu-toggle {
+    display: block;
+  }
+  
+  .mobile-overlay {
+    display: block;
+  }
+  
+  .main-content {
+    padding: 1.5rem 1rem;
+  }
+  
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .header-top {
+    display: flex;
+    align-items: center;
+    width: 100%;
+  }
+  
+  .header .btn-primary {
+    width: 100%;
+    justify-content: center;
+  }
+}
