@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   LayoutDashboard, Receipt, PlusCircle, Wallet,
   ArrowUpRight, ArrowDownRight, Briefcase, Car, Users, BookOpen,
@@ -10,12 +10,27 @@ const COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444'];
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [transactions, setTransactions] = useState(initialTransactions);
+  const [transactions, setTransactions] = useState(() => {
+    const saved = localStorage.getItem('accounting_transactions');
+    return saved ? JSON.parse(saved) : initialTransactions;
+  });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [expandedCategory, setExpandedCategory] = useState(null);
   const [expandedType, setExpandedType] = useState(null);
-  const [activities, setActivities] = useState([]);
+  const [activities, setActivities] = useState(() => {
+    const saved = localStorage.getItem('accounting_activities');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [editId, setEditId] = useState(null);
+
+  // Persistence
+  useEffect(() => {
+    localStorage.setItem('accounting_transactions', JSON.stringify(transactions));
+  }, [transactions]);
+
+  useEffect(() => {
+    localStorage.setItem('accounting_activities', JSON.stringify(activities));
+  }, [activities]);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -159,7 +174,7 @@ function App() {
       {/* Sidebar */}
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <Wallet size={28} color="#3b82f6" />
+          <img src="/logo.png" alt="NL Logo" style={{ height: '36px', width: 'auto' }} />
           <span>NovaLink Accounting</span>
         </div>
 

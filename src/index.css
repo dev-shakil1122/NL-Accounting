@@ -71,6 +71,7 @@ body {
   gap: 0.75rem;
   background: linear-gradient(to right, #2563eb, #7c3aed);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
