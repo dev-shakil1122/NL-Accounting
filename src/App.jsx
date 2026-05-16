@@ -98,6 +98,16 @@ function App() {
       updatedTx = transactions.find(t => t.id === editId);
       const isFunding = formData.category === 'Funding';
 
+      let changes = [];
+      const oldAmount = updatedTx.debit > 0 ? updatedTx.debit : updatedTx.credit;
+      
+      if (updatedTx.description !== formData.description) changes.push(`Desc: '${updatedTx.description}' to '${formData.description}'`);
+      if (oldAmount !== amount) changes.push(`Amount: QAR ${oldAmount} to QAR ${amount}`);
+      if (updatedTx.category !== formData.category) changes.push(`Category: ${updatedTx.category} to ${formData.category}`);
+      if (updatedTx.date !== formData.date) changes.push(`Date: ${updatedTx.date} to ${formData.date}`);
+      
+      const changesText = changes.length > 0 ? changes.join(', ') : 'No visible changes made';
+
       const newTransactions = transactions.map(t => {
         if (t.id === editId) {
           return {
@@ -118,8 +128,8 @@ function App() {
       newActivity = {
         id: Date.now().toString(),
         type: 'EDIT',
-        title: 'Transaction Edited',
-        description: `Edited transaction ${editId}: ${formData.description}`,
+        title: `Edited Transaction ${editId}`,
+        description: changesText,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
       };
