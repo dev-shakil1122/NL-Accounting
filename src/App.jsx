@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import {
   LayoutDashboard, Receipt, PlusCircle, Wallet,
   ArrowUpRight, ArrowDownRight, Briefcase, Car, Users, BookOpen,
-  HelpCircle, X, MapPin, Pencil, Trash2, Activity, Menu
+  HelpCircle, X, MapPin, Pencil, Trash2, Activity, Menu, Paperclip
 } from 'lucide-react';
 import { initialTransactions, categories, expenseTypes } from './data';
 
@@ -38,7 +38,9 @@ function App() {
     date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
     description: '',
     amount: '',
-    category: 'Company'
+    category: 'Company',
+    attachment: null,
+    attachmentName: ''
   });
 
   // Derived metrics
@@ -86,7 +88,9 @@ function App() {
             debit: isFunding ? 0 : amount,
             credit: isFunding ? amount : 0,
             category: formData.category,
-            type: isFunding ? 'Income' : expenseTypes[formData.category]
+            type: isFunding ? 'Income' : expenseTypes[formData.category],
+            attachment: formData.attachment,
+            attachmentName: formData.attachmentName
           };
         }
         return t;
@@ -111,7 +115,9 @@ function App() {
         debit: isFunding ? 0 : amount,
         credit: isFunding ? amount : 0,
         category: formData.category,
-        type: isFunding ? 'Income' : expenseTypes[formData.category]
+        type: isFunding ? 'Income' : expenseTypes[formData.category],
+        attachment: formData.attachment,
+        attachmentName: formData.attachmentName
       };
       setTransactions([updatedTx, ...transactions]);
 
@@ -128,7 +134,7 @@ function App() {
     setActivities([newActivity, ...activities]);
     setIsModalOpen(false);
     setEditId(null);
-    setFormData({ date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }), description: '', amount: '', category: 'Company' });
+    setFormData({ date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }), description: '', amount: '', category: 'Company', attachment: null, attachmentName: '' });
   };
 
   const handleEditTransaction = (tx) => {
@@ -137,7 +143,9 @@ function App() {
       date: tx.date || '',
       description: tx.description,
       amount: tx.debit > 0 ? tx.debit : tx.credit,
-      category: tx.category
+      category: tx.category,
+      attachment: tx.attachment || null,
+      attachmentName: tx.attachmentName || ''
     });
     setIsModalOpen(true);
   };
@@ -157,6 +165,27 @@ function App() {
       };
       setActivities([newActivity, ...activities]);
     }
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 500 * 1024) {
+      alert('File size exceeds 500KB limit. Please choose a smaller file.');
+      e.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setFormData(prev => ({
+        ...prev,
+        attachment: reader.result,
+        attachmentName: file.name
+      }));
+    };
+    reader.readAsDataURL(file);
   };
 
   const getCategoryIcon = (cat) => {
@@ -212,7 +241,7 @@ function App() {
           </div>
           <button className="btn btn-primary" onClick={() => {
             setEditId(null);
-            setFormData({ date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }), description: '', amount: '', category: 'Company' });
+            setFormData({ date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }), description: '', amount: '', category: 'Company', attachment: null, attachmentName: '' });
             setIsModalOpen(true);
           }}>
             <PlusCircle size={20} />
@@ -332,6 +361,13 @@ function App() {
                                 <span className="tx-amount">
                                   QAR {isIncome ? tx.credit : tx.debit}
                                 </span>
+                                {tx.attachment && (
+                                  <div className="tx-actions">
+                                    <a className="btn-icon" href={tx.attachment} download={tx.attachmentName || 'attachment'} title="Download Attachment">
+                                      <Paperclip size={14} />
+                                    </a>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           ))
@@ -403,6 +439,11 @@ function App() {
                                   <button className="btn-icon delete" onClick={() => handleDeleteTransaction(tx.id)} title="Delete">
                                     <Trash2 size={14} />
                                   </button>
+                                  {tx.attachment && (
+                                    <a className="btn-icon" href={tx.attachment} download={tx.attachmentName || 'attachment'} title="Download Attachment">
+                                      <Paperclip size={14} />
+                                    </a>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -468,6 +509,11 @@ function App() {
                         <button className="btn-icon delete" onClick={() => handleDeleteTransaction(tx.id)} title="Delete">
                           <Trash2 size={16} />
                         </button>
+                        {tx.attachment && (
+                          <a className="btn-icon" href={tx.attachment} download={tx.attachmentName || 'attachment'} title="Download Attachment" style={{ color: 'inherit' }}>
+                            <Paperclip size={16} />
+                          </a>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -572,6 +618,35 @@ function App() {
                   <option key={cat.id} value={cat.id}>{cat.label}</option>
                 ))}
               </select>
+            </div>
+
+            <div className="form-group" style={{ marginTop: '1rem' }}>
+              <label className="form-label">Attachment (Max 500KB)</label>
+              {formData.attachment ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden' }}>
+                    <Paperclip size={16} color="var(--accent-color)" />
+                    <span style={{ fontSize: '0.85rem', color: 'var(--accent-color)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {formData.attachmentName}
+                    </span>
+                  </div>
+                  <button 
+                    type="button" 
+                    onClick={() => setFormData({ ...formData, attachment: null, attachmentName: '' })}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger-color)', display: 'flex', alignItems: 'center' }}
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              ) : (
+                <input
+                  type="file"
+                  className="form-control"
+                  onChange={handleFileChange}
+                  accept="image/*,.pdf"
+                  style={{ padding: '0.5rem' }}
+                />
+              )}
             </div>
 
             <div className="form-group" style={{ padding: '1rem', background: 'rgba(0,0,0,0.04)', borderRadius: '8px', marginTop: '1.5rem' }}>
