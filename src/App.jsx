@@ -31,8 +31,6 @@ function App() {
         }
         return updatedTx;
       });
-        return tx;
-      });
     }
     return initialTransactions;
   });
@@ -389,12 +387,15 @@ function App() {
                         ) : (
                           typeTransactions.map(tx => (
                             <div key={tx.id} className="category-tx-item">
-                              <div className="tx-info">
-                                <span className="tx-date">{tx.date || '-'}</span>
-                                <span className="tx-desc">
+                              <div className="tx-info" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                <span className="tx-desc" style={{ fontSize: '0.85rem', fontWeight: 600, lineHeight: 1.2 }}>
                                   {tx.description}
-                                  <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>{tx.id}</span>
                                 </span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                                  <span>{tx.date || '-'}</span>
+                                  <span>•</span>
+                                  <span>{tx.id}</span>
+                                </div>
                               </div>
                               <div className="tx-right">
                                 <span className="tx-amount">
@@ -463,12 +464,15 @@ function App() {
                         ) : (
                           categoryTransactions.map(tx => (
                             <div key={tx.id} className="category-tx-item">
-                              <div className="tx-info">
-                                <span className="tx-date">{tx.date || '-'}</span>
-                                <span className="tx-desc">
+                              <div className="tx-info" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                <span className="tx-desc" style={{ fontSize: '0.85rem', fontWeight: 600, lineHeight: 1.2 }}>
                                   {tx.description}
-                                  <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>{tx.id}</span>
                                 </span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                                  <span>{tx.date || '-'}</span>
+                                  <span>•</span>
+                                  <span>{tx.id}</span>
+                                </div>
                               </div>
                               <div className="tx-right">
                                 <span className="tx-amount">
