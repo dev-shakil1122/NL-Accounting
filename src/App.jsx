@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import {
   LayoutDashboard, Receipt, PlusCircle, Wallet,
   ArrowUpRight, ArrowDownRight, Briefcase, Car, Users, BookOpen,
-  HelpCircle, X, MapPin, Pencil, Trash2, Activity, Menu, Paperclip
+  HelpCircle, X, MapPin, Pencil, Trash2, Activity, Menu, Paperclip, Download, Eye, FileText, Image as ImageIcon
 } from 'lucide-react';
 import { initialTransactions, categories, expenseTypes } from './data';
 
@@ -13,8 +13,22 @@ function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [transactions, setTransactions] = useState(() => {
     const saved = localStorage.getItem('accounting_transactions');
-    return saved ? JSON.parse(saved) : initialTransactions;
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Migrate old single attachments to new array structure
+      return parsed.map(tx => {
+        if (tx.attachment && !tx.attachments) {
+          return { 
+            ...tx, 
+            attachments: [{ data: tx.attachment, name: tx.attachmentName || 'Attachment' }] 
+          };
+        }
+        return tx;
+      });
+    }
+    return initialTransactions;
   });
+  const [previewAttachment, setPreviewAttachment] = useState({ isOpen: false, files: [], activeIndex: 0 });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [expandedCategory, setExpandedCategory] = useState(null);
   const [expandedType, setExpandedType] = useState(null);
@@ -39,8 +53,7 @@ function App() {
     description: '',
     amount: '',
     category: 'Company',
-    attachment: null,
-    attachmentName: ''
+    attachments: []
   });
 
   // Derived metrics
@@ -89,8 +102,7 @@ function App() {
             credit: isFunding ? amount : 0,
             category: formData.category,
             type: isFunding ? 'Income' : expenseTypes[formData.category],
-            attachment: formData.attachment,
-            attachmentName: formData.attachmentName
+            attachments: formData.attachments
           };
         }
         return t;
@@ -116,8 +128,7 @@ function App() {
         credit: isFunding ? amount : 0,
         category: formData.category,
         type: isFunding ? 'Income' : expenseTypes[formData.category],
-        attachment: formData.attachment,
-        attachmentName: formData.attachmentName
+        attachments: formData.attachments
       };
       setTransactions([updatedTx, ...transactions]);
 
@@ -134,7 +145,7 @@ function App() {
     setActivities([newActivity, ...activities]);
     setIsModalOpen(false);
     setEditId(null);
-    setFormData({ date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }), description: '', amount: '', category: 'Company', attachment: null, attachmentName: '' });
+    setFormData({ date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }), description: '', amount: '', category: 'Company', attachments: [] });
   };
 
   const handleEditTransaction = (tx) => {
@@ -144,8 +155,7 @@ function App() {
       description: tx.description,
       amount: tx.debit > 0 ? tx.debit : tx.credit,
       category: tx.category,
-      attachment: tx.attachment || null,
-      attachmentName: tx.attachmentName || ''
+      attachments: tx.attachments || []
     });
     setIsModalOpen(true);
   };
@@ -168,24 +178,42 @@ function App() {
   };
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
 
-    if (file.size > 500 * 1024) {
-      alert('File size exceeds 500KB limit. Please choose a smaller file.');
+    if (formData.attachments.length + files.length > 3) {
+      alert('You can only attach a maximum of 3 files per transaction.');
       e.target.value = '';
       return;
     }
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setFormData(prev => ({
-        ...prev,
-        attachment: reader.result,
-        attachmentName: file.name
-      }));
-    };
-    reader.readAsDataURL(file);
+    const validFiles = files.filter(f => {
+      if (f.size > 500 * 1024) {
+        alert(`File ${f.name} exceeds 500KB limit and was skipped.`);
+        return false;
+      }
+      return true;
+    });
+
+    validFiles.forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({
+          ...prev,
+          attachments: [...prev.attachments, { data: reader.result, name: file.name, type: file.type }]
+        }));
+      };
+      reader.readAsDataURL(file);
+    });
+    
+    e.target.value = '';
+  };
+
+  const removeAttachment = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      attachments: prev.attachments.filter((_, i) => i !== index)
+    }));
   };
 
   const getCategoryIcon = (cat) => {
@@ -361,11 +389,11 @@ function App() {
                                 <span className="tx-amount">
                                   QAR {isIncome ? tx.credit : tx.debit}
                                 </span>
-                                {tx.attachment && (
+                                {tx.attachments && tx.attachments.length > 0 && (
                                   <div className="tx-actions">
-                                    <a className="btn-icon" href={tx.attachment} download={tx.attachmentName || 'attachment'} title="Download Attachment">
+                                    <button className="btn-icon" onClick={() => setPreviewAttachment({ isOpen: true, files: tx.attachments, activeIndex: 0 })} title="View Attachments">
                                       <Paperclip size={14} />
-                                    </a>
+                                    </button>
                                   </div>
                                 )}
                               </div>
@@ -439,10 +467,10 @@ function App() {
                                   <button className="btn-icon delete" onClick={() => handleDeleteTransaction(tx.id)} title="Delete">
                                     <Trash2 size={14} />
                                   </button>
-                                  {tx.attachment && (
-                                    <a className="btn-icon" href={tx.attachment} download={tx.attachmentName || 'attachment'} title="Download Attachment">
+                                  {tx.attachments && tx.attachments.length > 0 && (
+                                    <button className="btn-icon" onClick={() => setPreviewAttachment({ isOpen: true, files: tx.attachments, activeIndex: 0 })} title="View Attachments">
                                       <Paperclip size={14} />
-                                    </a>
+                                    </button>
                                   )}
                                 </div>
                               </div>
@@ -509,10 +537,10 @@ function App() {
                         <button className="btn-icon delete" onClick={() => handleDeleteTransaction(tx.id)} title="Delete">
                           <Trash2 size={16} />
                         </button>
-                        {tx.attachment && (
-                          <a className="btn-icon" href={tx.attachment} download={tx.attachmentName || 'attachment'} title="Download Attachment" style={{ color: 'inherit' }}>
+                        {tx.attachments && tx.attachments.length > 0 && (
+                          <button className="btn-icon" onClick={() => setPreviewAttachment({ isOpen: true, files: tx.attachments, activeIndex: 0 })} title="View Attachments" style={{ color: 'inherit' }}>
                             <Paperclip size={16} />
-                          </a>
+                          </button>
                         )}
                       </div>
                     </td>
@@ -621,26 +649,32 @@ function App() {
             </div>
 
             <div className="form-group" style={{ marginTop: '1rem' }}>
-              <label className="form-label">Attachment (Max 500KB)</label>
-              {formData.attachment ? (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden' }}>
-                    <Paperclip size={16} color="var(--accent-color)" />
-                    <span style={{ fontSize: '0.85rem', color: 'var(--accent-color)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {formData.attachmentName}
-                    </span>
-                  </div>
-                  <button 
-                    type="button" 
-                    onClick={() => setFormData({ ...formData, attachment: null, attachmentName: '' })}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger-color)', display: 'flex', alignItems: 'center' }}
-                  >
-                    <X size={16} />
-                  </button>
+              <label className="form-label">Attachments (Max 3 files, 500KB each)</label>
+              {formData.attachments && formData.attachments.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                  {formData.attachments.map((file, idx) => (
+                    <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden' }}>
+                        <Paperclip size={16} color="var(--accent-color)" />
+                        <span style={{ fontSize: '0.85rem', color: 'var(--accent-color)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {file.name}
+                        </span>
+                      </div>
+                      <button 
+                        type="button" 
+                        onClick={() => removeAttachment(idx)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger-color)', display: 'flex', alignItems: 'center' }}
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              ) : (
+              )}
+              {(!formData.attachments || formData.attachments.length < 3) && (
                 <input
                   type="file"
+                  multiple
                   className="form-control"
                   onChange={handleFileChange}
                   accept="image/*,.pdf"
@@ -665,6 +699,58 @@ function App() {
               {editId ? 'Update Transaction' : 'Save Expense'}
             </button>
           </form>
+        </div>
+      </div>
+
+      {/* Attachment Preview Modal */}
+      <div className={`modal-overlay ${previewAttachment.isOpen ? 'active' : ''}`} onClick={() => setPreviewAttachment({ isOpen: false, files: [], activeIndex: 0 })}>
+        <div className="glass-panel modal-content preview-modal-content" onClick={e => e.stopPropagation()}>
+          <div className="modal-header">
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Attachment Preview</h2>
+            <button className="modal-close" onClick={() => setPreviewAttachment({ isOpen: false, files: [], activeIndex: 0 })}>
+              <X size={24} />
+            </button>
+          </div>
+
+          {previewAttachment.files.length > 0 && (
+            <>
+              {previewAttachment.files.length > 1 && (
+                <div className="preview-gallery">
+                  {previewAttachment.files.map((file, idx) => (
+                    <div 
+                      key={idx} 
+                      className={`preview-gallery-item ${previewAttachment.activeIndex === idx ? 'active' : ''}`}
+                      onClick={() => setPreviewAttachment(prev => ({ ...prev, activeIndex: idx }))}
+                    >
+                      {file.type?.includes('pdf') || file.name?.toLowerCase().endsWith('.pdf') ? <FileText size={16} /> : <ImageIcon size={16} />}
+                      <span style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {file.name}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              <div className="preview-viewer">
+                {previewAttachment.files[previewAttachment.activeIndex]?.type?.includes('pdf') || previewAttachment.files[previewAttachment.activeIndex]?.name?.toLowerCase().endsWith('.pdf') ? (
+                  <iframe src={previewAttachment.files[previewAttachment.activeIndex]?.data} title="PDF Preview" />
+                ) : (
+                  <img src={previewAttachment.files[previewAttachment.activeIndex]?.data} alt="Preview" />
+                )}
+              </div>
+              
+              <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
+                <a 
+                  className="btn btn-primary" 
+                  href={previewAttachment.files[previewAttachment.activeIndex]?.data} 
+                  download={previewAttachment.files[previewAttachment.activeIndex]?.name || 'attachment'}
+                >
+                  <Download size={18} />
+                  Download File
+                </a>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
