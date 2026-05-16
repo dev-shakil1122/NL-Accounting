@@ -15,14 +15,22 @@ function App() {
     const saved = localStorage.getItem('accounting_transactions');
     if (saved) {
       const parsed = JSON.parse(saved);
-      // Migrate old single attachments to new array structure
+      // Migrate old single attachments and add NL- prefix to IDs if missing
       return parsed.map(tx => {
-        if (tx.attachment && !tx.attachments) {
-          return { 
-            ...tx, 
-            attachments: [{ data: tx.attachment, name: tx.attachmentName || 'Attachment' }] 
+        let updatedTx = { ...tx };
+        if (updatedTx.attachment && !updatedTx.attachments) {
+          updatedTx = { 
+            ...updatedTx, 
+            attachments: [{ data: updatedTx.attachment, name: updatedTx.attachmentName || 'Attachment' }],
+            attachment: undefined,
+            attachmentName: undefined
           };
         }
+        if (!updatedTx.id.toString().startsWith('NL-')) {
+          updatedTx.id = 'NL-' + updatedTx.id;
+        }
+        return updatedTx;
+      });
         return tx;
       });
     }
@@ -121,7 +129,7 @@ function App() {
       // Create new transaction
       const isFunding = formData.category === 'Funding';
       updatedTx = {
-        id: Date.now().toString(),
+        id: 'NL-' + Date.now().toString().slice(-6) + Math.floor(Math.random() * 1000),
         date: formData.date,
         description: formData.description,
         debit: isFunding ? 0 : amount,
@@ -166,7 +174,7 @@ function App() {
       setTransactions(transactions.filter(t => t.id !== id));
 
       const newActivity = {
-        id: Date.now().toString(),
+        id: 'NL-' + Date.now().toString().slice(-6) + Math.floor(Math.random() * 1000),
         type: 'DELETE',
         title: 'Transaction Deleted',
         description: `Deleted: ${txToDelete.description} (QAR ${txToDelete.debit > 0 ? txToDelete.debit : txToDelete.credit})`,
@@ -383,7 +391,10 @@ function App() {
                             <div key={tx.id} className="category-tx-item">
                               <div className="tx-info">
                                 <span className="tx-date">{tx.date || '-'}</span>
-                                <span className="tx-desc">{tx.description}</span>
+                                <span className="tx-desc">
+                                  {tx.description}
+                                  <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>{tx.id}</span>
+                                </span>
                               </div>
                               <div className="tx-right">
                                 <span className="tx-amount">
@@ -454,7 +465,10 @@ function App() {
                             <div key={tx.id} className="category-tx-item">
                               <div className="tx-info">
                                 <span className="tx-date">{tx.date || '-'}</span>
-                                <span className="tx-desc">{tx.description}</span>
+                                <span className="tx-desc">
+                                  {tx.description}
+                                  <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>{tx.id}</span>
+                                </span>
                               </div>
                               <div className="tx-right">
                                 <span className="tx-amount">
@@ -491,6 +505,7 @@ function App() {
             <table>
               <thead>
                 <tr>
+                  <th>ID</th>
                   <th>Date</th>
                   <th>Description</th>
                   <th>Category</th>
@@ -503,6 +518,7 @@ function App() {
               <tbody>
                 {transactions.map(tx => (
                   <tr key={tx.id}>
+                    <td style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{tx.id}</td>
                     <td style={{ color: 'var(--text-secondary)' }}>{tx.date || '-'}</td>
                     <td style={{ fontWeight: 500 }}>{tx.description}</td>
                     <td>
