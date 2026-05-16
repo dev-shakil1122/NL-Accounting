@@ -128,7 +128,7 @@ function App() {
       newActivity = {
         id: Date.now().toString(),
         type: 'EDIT',
-        title: `Edited Transaction ${editId}`,
+        title: `Edited Transaction ${editId} - ${updatedTx.description}`,
         description: changesText,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
