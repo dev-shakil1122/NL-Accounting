@@ -386,20 +386,20 @@ function App() {
                           </div>
                         ) : (
                           typeTransactions.map(tx => (
-                            <div key={tx.id} className="category-tx-item">
-                              <div className="tx-info" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                <span className="tx-desc" style={{ fontSize: '0.85rem', fontWeight: 600, lineHeight: 1.2 }}>
-                                  {tx.description}
-                                </span>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                            <div key={tx.id} className="category-tx-item" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '6px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                                   <span>{tx.date || '-'}</span>
                                   <span>•</span>
                                   <span>{tx.id}</span>
                                 </div>
-                              </div>
-                              <div className="tx-right">
-                                <span className="tx-amount">
+                                <span className="tx-amount" style={{ fontSize: '0.85rem', fontWeight: 600, color: isIncome ? 'var(--accent-color)' : 'var(--danger-color)' }}>
                                   QAR {isIncome ? tx.credit : tx.debit}
+                                </span>
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                <span className="tx-desc" style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.2 }}>
+                                  {tx.description}
                                 </span>
                                 {tx.attachments && tx.attachments.length > 0 && (
                                   <div className="tx-actions">
@@ -463,20 +463,20 @@ function App() {
                           </div>
                         ) : (
                           categoryTransactions.map(tx => (
-                            <div key={tx.id} className="category-tx-item">
-                              <div className="tx-info" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                <span className="tx-desc" style={{ fontSize: '0.85rem', fontWeight: 600, lineHeight: 1.2 }}>
-                                  {tx.description}
-                                </span>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                            <div key={tx.id} className="category-tx-item" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '6px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                                   <span>{tx.date || '-'}</span>
                                   <span>•</span>
                                   <span>{tx.id}</span>
                                 </div>
-                              </div>
-                              <div className="tx-right">
-                                <span className="tx-amount">
+                                <span className="tx-amount" style={{ fontSize: '0.85rem', fontWeight: 600, color: isFunding ? 'var(--accent-color)' : 'var(--danger-color)' }}>
                                   QAR {isFunding ? tx.credit : tx.debit}
+                                </span>
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                <span className="tx-desc" style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.2 }}>
+                                  {tx.description}
                                 </span>
                                 <div className="tx-actions">
                                   <button className="btn-icon edit" onClick={() => handleEditTransaction(tx)} title="Edit">
