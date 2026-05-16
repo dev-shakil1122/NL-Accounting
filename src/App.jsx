@@ -119,7 +119,7 @@ function App() {
         id: Date.now().toString(),
         type: 'EDIT',
         title: 'Transaction Edited',
-        description: `Edited transaction: ${formData.description}`,
+        description: `Edited transaction ${editId}: ${formData.description}`,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
       };
@@ -142,7 +142,7 @@ function App() {
         id: Date.now().toString(),
         type: 'ADD',
         title: 'New Transaction Added',
-        description: `Added: ${formData.description} for QAR ${amount}`,
+        description: `Added transaction ${updatedTx.id}: ${formData.description} for QAR ${amount}`,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
       };
@@ -175,7 +175,7 @@ function App() {
         id: 'NL-' + Date.now().toString().slice(-6) + Math.floor(Math.random() * 1000),
         type: 'DELETE',
         title: 'Transaction Deleted',
-        description: `Deleted: ${txToDelete.description} (QAR ${txToDelete.debit > 0 ? txToDelete.debit : txToDelete.credit})`,
+        description: `Deleted transaction ${id}: ${txToDelete.description} (QAR ${txToDelete.debit > 0 ? txToDelete.debit : txToDelete.credit})`,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
       };
