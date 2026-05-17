@@ -346,6 +346,63 @@ function App() {
               </div>
             </div>
 
+            {/* Recent Transactions */}
+            <div style={{ marginTop: '2rem', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Recent Transactions</h2>
+              <button 
+                className="btn btn-outline" 
+                style={{ padding: '0.25rem 0.75rem', fontSize: '0.85rem' }}
+                onClick={() => setActiveTab('transactions')}
+              >
+                View All
+              </button>
+            </div>
+            
+            <div className="glass-panel" style={{ padding: '0 1.5rem', marginBottom: '2rem' }}>
+              {transactions.length === 0 ? (
+                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                  No transactions found.
+                </div>
+              ) : (
+                <div className="category-tx-list" style={{ marginTop: 0, borderTop: 'none', paddingTop: '0.5rem' }}>
+                  {transactions.slice(0, 5).map(tx => {
+                    const isFunding = tx.category === 'Funding';
+                    return (
+                      <div key={tx.id} className="category-tx-item" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '6px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                            <span>{tx.date || '-'}</span>
+                            <span>•</span>
+                            <span>{tx.id}</span>
+                          </div>
+                          <span className="tx-amount" style={{ fontSize: '0.85rem', fontWeight: 600, color: isFunding ? 'var(--accent-color)' : 'var(--danger-color)' }}>
+                            QAR {isFunding ? tx.credit : tx.debit}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <span className="tx-desc" style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.2 }}>
+                            {tx.description}
+                          </span>
+                          <div className="tx-actions">
+                            <button className="btn-icon edit" onClick={() => handleEditTransaction(tx)} title="Edit">
+                              <Pencil size={14} />
+                            </button>
+                            <button className="btn-icon delete" onClick={() => handleDeleteTransaction(tx.id)} title="Delete">
+                              <Trash2 size={14} />
+                            </button>
+                            {tx.attachments && tx.attachments.length > 0 && (
+                              <button className="btn-icon" onClick={() => setPreviewAttachment({ isOpen: true, files: tx.attachments, activeIndex: 0 })} title="View Attachments">
+                                <Paperclip size={14} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
             {/* Expense Type Overview */}
             <div style={{ marginTop: '2rem', marginBottom: '1.5rem' }}>
               <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Expense Type Overview</h2>
