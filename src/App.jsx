@@ -19,8 +19,8 @@ function App() {
       return parsed.map(tx => {
         let updatedTx = { ...tx };
         if (updatedTx.attachment && !updatedTx.attachments) {
-          updatedTx = { 
-            ...updatedTx, 
+          updatedTx = {
+            ...updatedTx,
             attachments: [{ data: updatedTx.attachment, name: updatedTx.attachmentName || 'Attachment' }],
             attachment: undefined,
             attachmentName: undefined
@@ -100,12 +100,12 @@ function App() {
 
       let changes = [];
       const oldAmount = updatedTx.debit > 0 ? updatedTx.debit : updatedTx.credit;
-      
+
       if (updatedTx.description !== formData.description) changes.push(`Desc: '${updatedTx.description}' to '${formData.description}'`);
       if (oldAmount !== amount) changes.push(`Amount: QAR ${oldAmount} to QAR ${amount}`);
       if (updatedTx.category !== formData.category) changes.push(`Category: ${updatedTx.category} to ${formData.category}`);
       if (updatedTx.date !== formData.date) changes.push(`Date: ${updatedTx.date} to ${formData.date}`);
-      
+
       const changesText = changes.length > 0 ? changes.join(', ') : 'No visible changes made';
 
       const newTransactions = transactions.map(t => {
@@ -221,7 +221,7 @@ function App() {
       };
       reader.readAsDataURL(file);
     });
-    
+
     e.target.value = '';
   };
 
@@ -247,7 +247,7 @@ function App() {
     <div className="app-container">
       {/* Mobile Overlay */}
       <div className={`mobile-overlay ${isMobileMenuOpen ? 'active' : ''}`} onClick={() => setIsMobileMenuOpen(false)} />
-      
+
       {/* Sidebar */}
       <aside className={`sidebar ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
         <div className="sidebar-logo">
@@ -349,15 +349,15 @@ function App() {
             {/* Recent Transactions */}
             <div style={{ marginTop: '2rem', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Recent Transactions</h2>
-              <button 
-                className="btn btn-outline" 
+              <button
+                className="btn btn-outline"
                 style={{ padding: '0.25rem 0.75rem', fontSize: '0.85rem' }}
                 onClick={() => setActiveTab('transactions')}
               >
                 View All
               </button>
             </div>
-            
+
             <div className="glass-panel" style={{ padding: '0 1.5rem', marginBottom: '2rem' }}>
               {transactions.length === 0 ? (
                 <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
@@ -407,24 +407,24 @@ function App() {
             <div style={{ marginTop: '2rem', marginBottom: '1.5rem' }}>
               <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Expense Type Overview</h2>
             </div>
-            
+
             <div className="category-grid">
               {['Assets', 'Returnable', 'Permanent'].map(typeId => {
                 const typeTransactions = transactions.filter(t => t.type === typeId);
                 const isIncome = typeId === 'Income';
-                
+
                 const totalAmount = typeTransactions.reduce((sum, tx) => {
                   return sum + (isIncome ? tx.credit : tx.debit);
                 }, 0);
-                
+
                 const isExpanded = expandedType === typeId;
-                
+
                 let iconColor = 'var(--text-secondary)';
                 if (typeId === 'Income') iconColor = 'var(--accent-color)';
                 if (typeId === 'Assets') iconColor = 'var(--asset-color)';
                 if (typeId === 'Returnable') iconColor = 'var(--success-color)';
                 if (typeId === 'Permanent') iconColor = 'var(--danger-color)';
-                
+
                 return (
                   <div key={typeId} className="glass-panel category-summary-card">
                     <div className="category-summary-header">
@@ -433,18 +433,18 @@ function App() {
                       </div>
                       {typeId}
                     </div>
-                    
+
                     <div className="category-summary-amount" style={{ color: iconColor }}>
                       {isIncome ? '+' : '-'} QAR {totalAmount.toLocaleString()}
                     </div>
-                    
+
                     <button
                       className="btn btn-outline"
                       onClick={() => setExpandedType(isExpanded ? null : typeId)}
                     >
                       {isExpanded ? 'Hide Transactions' : 'Show all transactions'}
                     </button>
-                    
+
                     {isExpanded && (
                       <div className="category-tx-list animate-fade-in">
                         {typeTransactions.length === 0 ? (
@@ -490,7 +490,7 @@ function App() {
             <div style={{ marginTop: '3rem', marginBottom: '1.5rem' }}>
               <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Expenses by Category</h2>
             </div>
-            
+
             <div className="category-grid">
               {['Funding', ...categories.map(c => c.id)].map(categoryId => {
                 const categoryTransactions = transactions.filter(t => t.category === categoryId);
@@ -747,8 +747,8 @@ function App() {
                           {file.name}
                         </span>
                       </div>
-                      <button 
-                        type="button" 
+                      <button
+                        type="button"
                         onClick={() => removeAttachment(idx)}
                         style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger-color)', display: 'flex', alignItems: 'center' }}
                       >
@@ -804,8 +804,8 @@ function App() {
               {previewAttachment.files.length > 1 && (
                 <div className="preview-gallery">
                   {previewAttachment.files.map((file, idx) => (
-                    <div 
-                      key={idx} 
+                    <div
+                      key={idx}
                       className={`preview-gallery-item ${previewAttachment.activeIndex === idx ? 'active' : ''}`}
                       onClick={() => setPreviewAttachment(prev => ({ ...prev, activeIndex: idx }))}
                     >
@@ -817,7 +817,7 @@ function App() {
                   ))}
                 </div>
               )}
-              
+
               <div className="preview-viewer">
                 {previewAttachment.files[previewAttachment.activeIndex]?.type?.includes('pdf') || previewAttachment.files[previewAttachment.activeIndex]?.name?.toLowerCase().endsWith('.pdf') ? (
                   <iframe src={previewAttachment.files[previewAttachment.activeIndex]?.data} title="PDF Preview" />
@@ -825,11 +825,11 @@ function App() {
                   <img src={previewAttachment.files[previewAttachment.activeIndex]?.data} alt="Preview" />
                 )}
               </div>
-              
+
               <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
-                <a 
-                  className="btn btn-primary" 
-                  href={previewAttachment.files[previewAttachment.activeIndex]?.data} 
+                <a
+                  className="btn btn-primary"
+                  href={previewAttachment.files[previewAttachment.activeIndex]?.data}
                   download={previewAttachment.files[previewAttachment.activeIndex]?.name || 'attachment'}
                 >
                   <Download size={18} />
