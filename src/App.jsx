@@ -59,6 +59,7 @@ function App() {
     description: '',
     amount: '',
     category: 'Company',
+    type: 'Permanent',
     attachments: []
   });
 
@@ -85,6 +86,26 @@ function App() {
     return { totalFunding, totalExpenses, totalAssets, totalReturnable, totalPermanent, balance: totalFunding - totalExpenses, totalInvestment: totalAssets + totalReturnable };
   }, [transactions]);
 
+  const handleCategoryChange = (newCategory) => {
+    let newType = formData.type;
+    if (newCategory === 'Funding') {
+      newType = 'Income';
+    } else if (formData.type === 'Income') {
+      newType = expenseTypes[newCategory] || 'Permanent';
+    }
+    setFormData(prev => ({ ...prev, category: newCategory, type: newType }));
+  };
+
+  const handleTypeChange = (newType) => {
+    let newCategory = formData.category;
+    if (newType === 'Income') {
+      newCategory = 'Funding';
+    } else if (formData.category === 'Funding') {
+      newCategory = 'Company';
+    }
+    setFormData(prev => ({ ...prev, type: newType, category: newCategory }));
+  };
+
   const handleAddExpense = (e) => {
     e.preventDefault();
     if (!formData.description || !formData.amount) return;
@@ -93,10 +114,11 @@ function App() {
     let updatedTx;
     let newActivity;
 
+    const isIncome = formData.type === 'Income';
+
     if (editId) {
       // Edit existing transaction
       updatedTx = transactions.find(t => t.id === editId);
-      const isFunding = formData.category === 'Funding';
 
       let changes = [];
       const oldAmount = updatedTx.debit > 0 ? updatedTx.debit : updatedTx.credit;
@@ -104,6 +126,7 @@ function App() {
       if (updatedTx.description !== formData.description) changes.push(`Desc: '${updatedTx.description}' to '${formData.description}'`);
       if (oldAmount !== amount) changes.push(`Amount: QAR ${oldAmount} to QAR ${amount}`);
       if (updatedTx.category !== formData.category) changes.push(`Category: ${updatedTx.category} to ${formData.category}`);
+      if (updatedTx.type !== formData.type) changes.push(`Type: ${updatedTx.type} to ${formData.type}`);
       if (updatedTx.date !== formData.date) changes.push(`Date: ${updatedTx.date} to ${formData.date}`);
 
       const changesText = changes.length > 0 ? changes.join(', ') : 'No visible changes made';
@@ -114,10 +137,10 @@ function App() {
             ...t,
             date: formData.date,
             description: formData.description,
-            debit: isFunding ? 0 : amount,
-            credit: isFunding ? amount : 0,
+            debit: isIncome ? 0 : amount,
+            credit: isIncome ? amount : 0,
             category: formData.category,
-            type: isFunding ? 'Income' : expenseTypes[formData.category],
+            type: formData.type,
             attachments: formData.attachments
           };
         }
@@ -135,15 +158,14 @@ function App() {
       };
     } else {
       // Create new transaction
-      const isFunding = formData.category === 'Funding';
       updatedTx = {
         id: 'NL-' + Date.now().toString().slice(-6) + Math.floor(Math.random() * 1000),
         date: formData.date,
         description: formData.description,
-        debit: isFunding ? 0 : amount,
-        credit: isFunding ? amount : 0,
+        debit: isIncome ? 0 : amount,
+        credit: isIncome ? amount : 0,
         category: formData.category,
-        type: isFunding ? 'Income' : expenseTypes[formData.category],
+        type: formData.type,
         attachments: formData.attachments
       };
       setTransactions([updatedTx, ...transactions]);
@@ -161,7 +183,14 @@ function App() {
     setActivities([newActivity, ...activities]);
     setIsModalOpen(false);
     setEditId(null);
-    setFormData({ date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }), description: '', amount: '', category: 'Company', attachments: [] });
+    setFormData({
+      date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
+      description: '',
+      amount: '',
+      category: 'Company',
+      type: 'Permanent',
+      attachments: []
+    });
   };
 
   const handleEditTransaction = (tx) => {
@@ -171,6 +200,7 @@ function App() {
       description: tx.description,
       amount: tx.debit > 0 ? tx.debit : tx.credit,
       category: tx.category,
+      type: tx.type || (tx.category === 'Funding' ? 'Income' : expenseTypes[tx.category] || 'Permanent'),
       attachments: tx.attachments || []
     });
     setIsModalOpen(true);
@@ -285,7 +315,14 @@ function App() {
           </div>
           <button className="btn btn-primary" onClick={() => {
             setEditId(null);
-            setFormData({ date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }), description: '', amount: '', category: 'Company', attachment: null, attachmentName: '' });
+            setFormData({
+              date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
+              description: '',
+              amount: '',
+              category: 'Company',
+              type: 'Permanent',
+              attachments: []
+            });
             setIsModalOpen(true);
           }}>
             <PlusCircle size={20} />
@@ -721,18 +758,33 @@ function App() {
               </div>
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Category</label>
-              <select
-                className="form-control"
-                value={formData.category}
-                onChange={e => setFormData({ ...formData, category: e.target.value })}
-              >
-                <option value="Funding">Funding</option>
-                {categories.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.label}</option>
-                ))}
-              </select>
+            <div className="form-group" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div>
+                <label className="form-label">Category</label>
+                <select
+                  className="form-control"
+                  value={formData.category}
+                  onChange={e => handleCategoryChange(e.target.value)}
+                >
+                  <option value="Funding">Funding</option>
+                  {categories.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="form-label">Type</label>
+                <select
+                  className="form-control"
+                  value={formData.type}
+                  onChange={e => handleTypeChange(e.target.value)}
+                >
+                  <option value="Permanent">Permanent</option>
+                  <option value="Assets">Assets</option>
+                  <option value="Returnable">Returnable</option>
+                  <option value="Income">Income (Funding)</option>
+                </select>
+              </div>
             </div>
 
             <div className="form-group" style={{ marginTop: '1rem' }}>
@@ -771,14 +823,11 @@ function App() {
             </div>
 
             <div className="form-group" style={{ padding: '1rem', background: 'rgba(0,0,0,0.04)', borderRadius: '8px', marginTop: '1.5rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Type:</span>
-                <span style={{ fontWeight: 600 }}>{expenseTypes[formData.category]}</span>
-              </div>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                {formData.category === 'Vehicle' ? 'This expense will be added to your total assets.' :
-                  expenseTypes[formData.category] === 'Returnable' ? 'This expense will be marked as returnable investment.' :
-                    'This expense is permanent and not returnable.'}
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
+                {formData.type === 'Assets' ? 'This expense will be added to your total assets.' :
+                  formData.type === 'Returnable' ? 'This expense will be marked as returnable investment.' :
+                  formData.type === 'Income' ? 'This is an income transaction and will increase your total balance.' :
+                  'This expense is permanent and not returnable.'}
               </p>
             </div>
 
