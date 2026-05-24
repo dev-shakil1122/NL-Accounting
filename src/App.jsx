@@ -5,52 +5,141 @@ import {
   HelpCircle, X, MapPin, Pencil, Trash2, Activity, Menu, Paperclip, Download, Eye, FileText, Image as ImageIcon
 } from 'lucide-react';
 import { initialTransactions, categories, expenseTypes } from './data';
+import { supabase, isSupabaseConfigured } from './supabaseClient';
 
 const COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444'];
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [transactions, setTransactions] = useState(() => {
-    const saved = localStorage.getItem('accounting_transactions');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      // Migrate old single attachments and add NL- prefix to IDs if missing
-      return parsed.map(tx => {
-        let updatedTx = { ...tx };
-        if (updatedTx.attachment && !updatedTx.attachments) {
-          updatedTx = {
-            ...updatedTx,
-            attachments: [{ data: updatedTx.attachment, name: updatedTx.attachmentName || 'Attachment' }],
-            attachment: undefined,
-            attachmentName: undefined
-          };
-        }
-        if (!updatedTx.id.toString().startsWith('NL-')) {
-          updatedTx.id = 'NL-' + updatedTx.id;
-        }
-        return updatedTx;
-      });
-    }
-    return initialTransactions;
-  });
+  const [transactions, setTransactions] = useState([]);
   const [previewAttachment, setPreviewAttachment] = useState({ isOpen: false, files: [], activeIndex: 0 });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [expandedCategory, setExpandedCategory] = useState(null);
   const [expandedType, setExpandedType] = useState(null);
-  const [activities, setActivities] = useState(() => {
-    const saved = localStorage.getItem('accounting_activities');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [activities, setActivities] = useState([]);
   const [editId, setEditId] = useState(null);
+  const [isLoading, setIsLoading] = useState(isSupabaseConfigured);
 
-  // Persistence
+  // Load transactions and activities (Dual DB & LocalStorage support)
   useEffect(() => {
-    localStorage.setItem('accounting_transactions', JSON.stringify(transactions));
+    if (!isSupabaseConfigured) {
+      // Fallback: load from localStorage
+      const savedTxs = localStorage.getItem('accounting_transactions');
+      if (savedTxs) {
+        setTransactions(JSON.parse(savedTxs));
+      } else {
+        setTransactions(initialTransactions);
+      }
+
+      const savedActs = localStorage.getItem('accounting_activities');
+      setActivities(savedActs ? JSON.parse(savedActs) : []);
+      setIsLoading(false);
+      return;
+    }
+
+    const loadData = async () => {
+      try {
+        setIsLoading(true);
+        
+        // 1. Fetch transactions
+        let { data: dbTransactions, error: txError } = await supabase
+          .from('transactions')
+          .select('*')
+          .order('id', { ascending: false });
+
+        if (txError) throw txError;
+
+        // 2. Fetch activities
+        let { data: dbActivities, error: actError } = await supabase
+          .from('activities')
+          .select('*')
+          .order('id', { ascending: false });
+
+        if (actError) throw actError;
+
+        // 3. Check for Migration
+        const localTxs = localStorage.getItem('accounting_transactions');
+        const localActs = localStorage.getItem('accounting_activities');
+        
+        const hasLocalData = localTxs && JSON.parse(localTxs).length > 0;
+        
+        if (dbTransactions.length === 0 && hasLocalData) {
+          // Perform automatic bulk migration
+          const parsedLocalTxs = JSON.parse(localTxs);
+          const parsedLocalActs = localActs ? JSON.parse(localActs) : [];
+
+          // Clean local data formats to match table
+          const txsToMigrate = parsedLocalTxs.map(tx => ({
+            id: tx.id.toString(),
+            date: tx.date || '',
+            description: tx.description || '',
+            debit: parseFloat(tx.debit) || 0,
+            credit: parseFloat(tx.credit) || 0,
+            category: tx.category || 'Company',
+            type: tx.type || 'Permanent',
+            attachments: tx.attachments || []
+          }));
+
+          const actsToMigrate = parsedLocalActs.map(act => ({
+            id: act.id.toString(),
+            type: act.type || 'ADD',
+            title: act.title || '',
+            description: act.description || '',
+            time: act.time || '',
+            date: act.date || ''
+          }));
+
+          if (txsToMigrate.length > 0) {
+            const { error: insertTxError } = await supabase.from('transactions').insert(txsToMigrate);
+            if (insertTxError) throw insertTxError;
+          }
+
+          if (actsToMigrate.length > 0) {
+            const { error: insertActError } = await supabase.from('activities').insert(actsToMigrate);
+            if (insertActError) throw insertActError;
+          }
+
+          // Fetch again after migration
+          let { data: newTxs } = await supabase.from('transactions').select('*').order('id', { ascending: false });
+          let { data: newActs } = await supabase.from('activities').select('*').order('id', { ascending: false });
+
+          setTransactions(newTxs || []);
+          setActivities(newActs || []);
+          
+          // Clear local storage after successful migration to prevent future triggers
+          localStorage.removeItem('accounting_transactions');
+          localStorage.removeItem('accounting_activities');
+        } else {
+          setTransactions(dbTransactions || []);
+          setActivities(dbActivities || []);
+        }
+      } catch (err) {
+        console.error('Failed to load data from Supabase:', err.message);
+        // Fallback to local storage on database query errors
+        const savedTxs = localStorage.getItem('accounting_transactions');
+        setTransactions(savedTxs ? JSON.parse(savedTxs) : initialTransactions);
+        const savedActs = localStorage.getItem('accounting_activities');
+        setActivities(savedActs ? JSON.parse(savedActs) : []);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  // Persistence fallback for offline/demo mode
+  useEffect(() => {
+    if (!isSupabaseConfigured) {
+      localStorage.setItem('accounting_transactions', JSON.stringify(transactions));
+    }
   }, [transactions]);
 
   useEffect(() => {
-    localStorage.setItem('accounting_activities', JSON.stringify(activities));
+    if (!isSupabaseConfigured) {
+      localStorage.setItem('accounting_activities', JSON.stringify(activities));
+    }
   }, [activities]);
 
   // Form State
@@ -106,15 +195,64 @@ function App() {
     setFormData(prev => ({ ...prev, type: newType, category: newCategory }));
   };
 
-  const handleAddExpense = (e) => {
+  const handleAddExpense = async (e) => {
     e.preventDefault();
     if (!formData.description || !formData.amount) return;
 
     const amount = parseFloat(formData.amount);
-    let updatedTx;
-    let newActivity;
+    const txId = editId || 'NL-' + Date.now().toString().slice(-6) + Math.floor(Math.random() * 1000);
+    let uploadedAttachments = [];
 
     const isIncome = formData.type === 'Income';
+
+    if (isSupabaseConfigured) {
+      setIsLoading(true);
+      try {
+        for (const attach of formData.attachments) {
+          if (attach.file) {
+            // Upload file to bucket
+            const fileExt = attach.name.split('.').pop();
+            const uniqueFileName = `${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`;
+            const filePath = `transactions/${txId}/${uniqueFileName}`;
+            
+            const { error: uploadError } = await supabase.storage
+              .from('attachments')
+              .upload(filePath, attach.file, {
+                cacheControl: '3600',
+                upsert: true
+              });
+              
+            if (uploadError) throw uploadError;
+            
+            const { data: publicUrlData } = supabase.storage
+              .from('attachments')
+              .getPublicUrl(filePath);
+              
+            uploadedAttachments.push({
+              name: attach.name,
+              type: attach.type,
+              data: publicUrlData.publicUrl
+            });
+          } else {
+            // Keep existing attachments
+            uploadedAttachments.push({
+              name: attach.name,
+              type: attach.type,
+              data: attach.data
+            });
+          }
+        }
+      } catch (err) {
+        alert('Failed to upload attachments: ' + err.message);
+        setIsLoading(false);
+        return;
+      }
+    } else {
+      uploadedAttachments = formData.attachments;
+    }
+
+    let updatedTx;
+    let newActivity;
 
     if (editId) {
       // Edit existing transaction
@@ -131,56 +269,136 @@ function App() {
 
       const changesText = changes.length > 0 ? changes.join(', ') : 'No visible changes made';
 
-      const newTransactions = transactions.map(t => {
-        if (t.id === editId) {
-          return {
-            ...t,
-            date: formData.date,
-            description: formData.description,
-            debit: isIncome ? 0 : amount,
-            credit: isIncome ? amount : 0,
-            category: formData.category,
-            type: formData.type,
-            attachments: formData.attachments
-          };
-        }
-        return t;
-      });
-      setTransactions(newTransactions);
+      if (isSupabaseConfigured) {
+        const dbTx = {
+          id: txId,
+          date: formData.date,
+          description: formData.description,
+          debit: isIncome ? 0 : amount,
+          credit: isIncome ? amount : 0,
+          category: formData.category,
+          type: formData.type,
+          attachments: uploadedAttachments
+        };
 
-      newActivity = {
-        id: Date.now().toString(),
-        type: 'EDIT',
-        title: `Edited Transaction ${editId} - ${updatedTx.description}`,
-        description: changesText,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
-      };
+        const dbActivity = {
+          id: Date.now().toString(),
+          type: 'EDIT',
+          title: `Edited Transaction ${txId} - ${formData.description}`,
+          description: changesText,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+        };
+
+        try {
+          const { error: txError } = await supabase.from('transactions').upsert(dbTx);
+          if (txError) throw txError;
+
+          const { error: actError } = await supabase.from('activities').insert(dbActivity);
+          if (actError) throw actError;
+
+          // Reload data
+          const { data: newTxs } = await supabase.from('transactions').select('*').order('id', { ascending: false });
+          const { data: newActs } = await supabase.from('activities').select('*').order('id', { ascending: false });
+          setTransactions(newTxs || []);
+          setActivities(newActs || []);
+        } catch (err) {
+          alert('Failed to update transaction in database: ' + err.message);
+          setIsLoading(false);
+          return;
+        }
+      } else {
+        const newTransactions = transactions.map(t => {
+          if (t.id === editId) {
+            return {
+              ...t,
+              date: formData.date,
+              description: formData.description,
+              debit: isIncome ? 0 : amount,
+              credit: isIncome ? amount : 0,
+              category: formData.category,
+              type: formData.type,
+              attachments: uploadedAttachments
+            };
+          }
+          return t;
+        });
+        setTransactions(newTransactions);
+
+        newActivity = {
+          id: Date.now().toString(),
+          type: 'EDIT',
+          title: `Edited Transaction ${editId} - ${updatedTx.description}`,
+          description: changesText,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+        };
+        setActivities([newActivity, ...activities]);
+      }
     } else {
       // Create new transaction
-      updatedTx = {
-        id: 'NL-' + Date.now().toString().slice(-6) + Math.floor(Math.random() * 1000),
-        date: formData.date,
-        description: formData.description,
-        debit: isIncome ? 0 : amount,
-        credit: isIncome ? amount : 0,
-        category: formData.category,
-        type: formData.type,
-        attachments: formData.attachments
-      };
-      setTransactions([updatedTx, ...transactions]);
+      if (isSupabaseConfigured) {
+        const dbTx = {
+          id: txId,
+          date: formData.date,
+          description: formData.description,
+          debit: isIncome ? 0 : amount,
+          credit: isIncome ? amount : 0,
+          category: formData.category,
+          type: formData.type,
+          attachments: uploadedAttachments
+        };
 
-      newActivity = {
-        id: Date.now().toString(),
-        type: 'ADD',
-        title: 'New Transaction Added',
-        description: `Added transaction ${updatedTx.id}: ${formData.description} for QAR ${amount}`,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
-      };
+        const dbActivity = {
+          id: Date.now().toString(),
+          type: 'ADD',
+          title: 'New Transaction Added',
+          description: `Added transaction ${txId}: ${formData.description} for QAR ${amount}`,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+        };
+
+        try {
+          const { error: txError } = await supabase.from('transactions').insert(dbTx);
+          if (txError) throw txError;
+
+          const { error: actError } = await supabase.from('activities').insert(dbActivity);
+          if (actError) throw actError;
+
+          const { data: newTxs } = await supabase.from('transactions').select('*').order('id', { ascending: false });
+          const { data: newActs } = await supabase.from('activities').select('*').order('id', { ascending: false });
+          setTransactions(newTxs || []);
+          setActivities(newActs || []);
+        } catch (err) {
+          alert('Failed to insert transaction into database: ' + err.message);
+          setIsLoading(false);
+          return;
+        }
+      } else {
+        updatedTx = {
+          id: txId,
+          date: formData.date,
+          description: formData.description,
+          debit: isIncome ? 0 : amount,
+          credit: isIncome ? amount : 0,
+          category: formData.category,
+          type: formData.type,
+          attachments: uploadedAttachments
+        };
+        setTransactions([updatedTx, ...transactions]);
+
+        newActivity = {
+          id: Date.now().toString(),
+          type: 'ADD',
+          title: 'New Transaction Added',
+          description: `Added transaction ${updatedTx.id}: ${formData.description} for QAR ${amount}`,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+        };
+        setActivities([newActivity, ...activities]);
+      }
     }
 
-    setActivities([newActivity, ...activities]);
     setIsModalOpen(false);
     setEditId(null);
     setFormData({
@@ -191,6 +409,7 @@ function App() {
       type: 'Permanent',
       attachments: []
     });
+    setIsLoading(false);
   };
 
   const handleEditTransaction = (tx) => {
@@ -206,20 +425,51 @@ function App() {
     setIsModalOpen(true);
   };
 
-  const handleDeleteTransaction = (id) => {
+  const handleDeleteTransaction = async (id) => {
     if (window.confirm('Are you sure you want to delete this transaction?')) {
       const txToDelete = transactions.find(t => t.id === id);
-      setTransactions(transactions.filter(t => t.id !== id));
 
-      const newActivity = {
-        id: 'NL-' + Date.now().toString().slice(-6) + Math.floor(Math.random() * 1000),
-        type: 'DELETE',
-        title: 'Transaction Deleted',
-        description: `Deleted transaction ${id}: ${txToDelete.description} (QAR ${txToDelete.debit > 0 ? txToDelete.debit : txToDelete.credit})`,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
-      };
-      setActivities([newActivity, ...activities]);
+      if (isSupabaseConfigured) {
+        setIsLoading(true);
+        try {
+          const { error: txError } = await supabase.from('transactions').delete().eq('id', id);
+          if (txError) throw txError;
+
+          const activityId = 'NL-' + Date.now().toString().slice(-6) + Math.floor(Math.random() * 1000);
+          const dbActivity = {
+            id: activityId,
+            type: 'DELETE',
+            title: 'Transaction Deleted',
+            description: `Deleted transaction ${id}: ${txToDelete.description} (QAR ${txToDelete.debit > 0 ? txToDelete.debit : txToDelete.credit})`,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+          };
+
+          const { error: actError } = await supabase.from('activities').insert(dbActivity);
+          if (actError) throw actError;
+
+          const { data: newTxs } = await supabase.from('transactions').select('*').order('id', { ascending: false });
+          const { data: newActs } = await supabase.from('activities').select('*').order('id', { ascending: false });
+          setTransactions(newTxs || []);
+          setActivities(newActs || []);
+        } catch (err) {
+          alert('Failed to delete transaction from database: ' + err.message);
+        } finally {
+          setIsLoading(false);
+        }
+      } else {
+        setTransactions(transactions.filter(t => t.id !== id));
+
+        const newActivity = {
+          id: 'NL-' + Date.now().toString().slice(-6) + Math.floor(Math.random() * 1000),
+          type: 'DELETE',
+          title: 'Transaction Deleted',
+          description: `Deleted transaction ${id}: ${txToDelete.description} (QAR ${txToDelete.debit > 0 ? txToDelete.debit : txToDelete.credit})`,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+        };
+        setActivities([newActivity, ...activities]);
+      }
     }
   };
 
@@ -241,16 +491,33 @@ function App() {
       return true;
     });
 
-    validFiles.forEach(file => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
+    if (isSupabaseConfigured) {
+      validFiles.forEach(file => {
         setFormData(prev => ({
           ...prev,
-          attachments: [...prev.attachments, { data: reader.result, name: file.name, type: file.type }]
+          attachments: [
+            ...prev.attachments,
+            { 
+              file, 
+              name: file.name, 
+              type: file.type, 
+              data: URL.createObjectURL(file) 
+            }
+          ]
         }));
-      };
-      reader.readAsDataURL(file);
-    });
+      });
+    } else {
+      validFiles.forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setFormData(prev => ({
+            ...prev,
+            attachments: [...prev.attachments, { data: reader.result, name: file.name, type: file.type }]
+          }));
+        };
+        reader.readAsDataURL(file);
+      });
+    }
 
     e.target.value = '';
   };
@@ -303,6 +570,22 @@ function App() {
 
       {/* Main Content */}
       <main className="main-content">
+        {!isSupabaseConfigured && (
+          <div className="glass-panel animate-fade-in" style={{ padding: '1rem 1.5rem', marginBottom: '2rem', border: '1px solid rgba(217, 119, 6, 0.3)', background: 'rgba(217, 119, 6, 0.05)', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div style={{ background: 'rgba(217, 119, 6, 0.1)', color: 'var(--warning-color)', borderRadius: '50%', padding: '0.35rem', display: 'flex' }}>
+                <Activity size={18} />
+              </div>
+              <div>
+                <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Offline Demo Mode</span>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>Currently saving data to browser memory (5MB limit). Configure `.env.local` to enable unlimited corporate database storage.</p>
+              </div>
+            </div>
+            <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="btn btn-outline" style={{ width: 'auto', padding: '0.4rem 1rem', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+              Set Up Database
+            </a>
+          </div>
+        )}
         <header className="header animate-fade-in">
           <div className="header-top">
             <button className="menu-toggle" onClick={() => setIsMobileMenuOpen(true)}>
@@ -889,6 +1172,15 @@ function App() {
           )}
         </div>
       </div>
+
+      {isLoading && (
+        <div className="modal-overlay active" style={{ zIndex: 100, background: 'rgba(248, 250, 252, 0.4)', backdropFilter: 'blur(8px)' }}>
+          <div className="glass-panel" style={{ padding: '2rem 3rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+            <div className="spinner animate-spin" style={{ width: '40px', height: '40px', border: '3px solid rgba(59, 130, 246, 0.2)', borderTopColor: 'var(--accent-color)', borderRadius: '50%' }}></div>
+            <span style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>Syncing with Database...</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
